@@ -1,0 +1,32 @@
+[package]
+name = "zkboo-modular"
+version = "0.1.0"
+edition = "2024"
+description = "Modular arithmetic primitives for the ZKBoo ecosystem."
+license = "LGPL-3.0-or-later"
+documentation = "https://docs.rs/zkboo-modular"
+repository = "https://github.com/zkboo/zkboo-modular"
+keywords = ["zk", "zero-knowledge", "zkboo"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+zkboo = "0.1.0"
+
+[dev-dependencies]
+zkboo = { version = "0.1.0", features = [
+    "u16",
+    "u32",
+    "u64",
+    "u128",
+    "u256",
+    "parallel",
+] }
+rand = "0.10.0"
+itertools = "0.14.0"
+blake3 = "1.8.3"
+paste = "1.0.15"
+zeroize = { version = "1.8.2", default-features = false, features = [
+    "zeroize_derive",
+    "alloc",
+] }
+dashu-int = "0.4.1"
