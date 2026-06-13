@@ -18,7 +18,17 @@ pub trait MontgomeryMod<W: Word, const N: usize>: Clone + Copy + Debug + Partial
     fn n(&self) -> CompositeWord<W, N>;
 
     /// Modular inversion exponent. Optional, enables inversion by repeated squaring.
-    fn inv_exp(&self) -> Option<CompositeWord<W, N>>;
+    ///
+    /// The default assumes a **prime** modulus and returns `n - 2`: by Fermat's little theorem,
+    /// `a^(n-2) ≡ a^(-1) (mod n)` for any `a` coprime to a prime `n`. This is correct for the
+    /// prime fields used by the ECC curves (e.g. secp256k1). Composite moduli (where Fermat does
+    /// not apply) must override this to return `None` — disabling [MontgomeryWord::inv] — or to a
+    /// Carmichael-based exponent if one is known.
+    #[inline]
+    fn inv_exp(&self) -> Option<CompositeWord<W, N>> {
+        let one = CompositeWord::<W, N>::ONE;
+        return Some(self.n().wrapping_sub(one).wrapping_sub(one));
+    }
 
     /// The residue by [Self::n] for the square of the Montgomery radix `r`.
     ///
