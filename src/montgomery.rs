@@ -66,7 +66,10 @@ pub trait MontgomeryMod<W: Word, const N: usize>: Clone + Copy + Debug + Partial
     /// Equivalent to [Self::redc_wide] with `t_hi` set to `Self::W::ZERO`.
     fn redc<B: Backend>(&self, lo: WordRef<B, W, N>) -> WordRef<B, W, N> {
         let n = self.n();
-        let (m, _) = lo.clone().wide_mul_const(self.n_neg_inv());
+        // Montgomery's `m = lo * n_neg_inv mod r` only needs the low `r`-residue, so a low-half
+        // (wrapping) multiply suffices — the discarded high half of a full `wide_mul_const` is
+        // pure wasted work.
+        let m = lo.clone().wrapping_mul_const(self.n_neg_inv());
         let (mn_lo, mn_hi) = m.wide_mul_const(n);
         let (_, t_lo_carry) = lo.overflowing_add(mn_lo);
         let (mut t, t_hi_lo_carry) = mn_hi.overflowing_add(WordRef::from_bool(t_lo_carry));
@@ -87,7 +90,10 @@ pub trait MontgomeryMod<W: Word, const N: usize>: Clone + Copy + Debug + Partial
         hi: WordRef<B, W, N>,
     ) -> WordRef<B, W, N> {
         let n = self.n();
-        let (m, _) = lo.clone().wide_mul_const(self.n_neg_inv());
+        // Montgomery's `m = lo * n_neg_inv mod r` only needs the low `r`-residue, so a low-half
+        // (wrapping) multiply suffices — the discarded high half of a full `wide_mul_const` is
+        // pure wasted work.
+        let m = lo.clone().wrapping_mul_const(self.n_neg_inv());
         let (mn_lo, mn_hi) = m.wide_mul_const(n);
         let (_, t_lo_carry) = lo.overflowing_add(mn_lo);
         let (t, t_hi_carry) = hi.overflowing_add(mn_hi);
