@@ -4,4 +4,5 @@
 
 #![no_std]
 pub mod montgomery;
+pub mod pseudo_mersenne;
 pub mod safegcd;

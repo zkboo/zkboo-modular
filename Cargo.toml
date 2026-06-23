@@ -30,3 +30,4 @@ zeroize = { version = "1.8.2", default-features = false, features = [
     "alloc",
 ] }
 dashu-int = "0.4.1"
+zkboo-profiling = "0.1.0"
