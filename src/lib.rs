@@ -4,3 +4,4 @@
 
 #![no_std]
 pub mod montgomery;
+pub mod safegcd;
