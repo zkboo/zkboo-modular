@@ -530,26 +530,20 @@ impl<B: Backend, M: MontgomeryMod<W, N>, W: Word, const N: usize> MontgomeryWord
     }
 
     /// Modular inverse of this Montgomery word.
+    ///
+    /// Uses the constant-time Bernstein–Yang safegcd algorithm (see [crate::safegcd]), which needs
+    /// only that the modulus be odd and `self` be coprime to it — no [MontgomeryMod::inv_exp] is
+    /// required. For an invertible value it returns the inverse in Montgomery form; for a
+    /// non-invertible value (e.g. zero) it returns zero, matching the Fermat convention.
     pub fn inv(self) -> Self {
-        let e = self.modulus.inv_exp();
-        return match e {
-            Some(e) => self.inv_by_rep_squaring(e),
-            None => unimplemented!("Cannot yet compute inverse without explicit inverse exponent."),
+        let modulus = self.modulus;
+        // safegcd works on the canonical integer residue; convert in, invert, convert back.
+        let a_int = modulus.from_montgomery(self.montgomery_val);
+        let inv_int = crate::safegcd::safegcd_invert(a_int, modulus.n());
+        return Self {
+            montgomery_val: modulus.to_montgomery(inv_int),
+            modulus,
         };
-    }
-
-    /// Helper function implementing modular inversion by repeated squaring.
-    fn inv_by_rep_squaring(self, mut e: CompositeWord<W, N>) -> Self {
-        let mut res = self.clone().into_const(CompositeWord::<W, N>::ONE);
-        let mut base = self;
-        while e.is_nonzero() {
-            if e.lsb() {
-                res = res * base.clone();
-            }
-            base = base.clone() * base;
-            e = e >> 1;
-        }
-        return res;
     }
 }
 
