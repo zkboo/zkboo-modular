@@ -32,6 +32,9 @@ impl PseudoMersenneMod<u64, 4> for Secp256k1 {
     }
 }
 
+// Verify the concrete FieldRep impl coheres alongside the MontgomeryMod blanket impl.
+zkboo_modular::impl_pseudo_mersenne_field_rep!(Secp256k1, u64, 4);
+
 fn to_ubig(w: CompositeWord<u64, 4>) -> UBig {
     let mut v = UBig::ZERO;
     for &limb in w.to_le_words().iter().rev() {

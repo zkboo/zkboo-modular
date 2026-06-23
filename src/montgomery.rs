@@ -2,6 +2,7 @@
 
 //! Montgomery modular arithmetic for the [zkboo] crate.
 
+use crate::field::FieldRep;
 use core::fmt::Debug;
 use core::ops::{Add, Mul, Neg, Sub};
 use zkboo::backend::{BooleanWordRef, Frontend};
@@ -42,23 +43,6 @@ pub trait MontgomeryMod<W: Word, const N: usize>: Clone + Copy + Debug + Partial
     /// radix be `r := 2**Self::W::WIDTH`, we have `n * n_neg_inv % r = r - 1`.
     fn n_neg_inv(&self) -> CompositeWord<W, N>;
 
-    /// Creates a [MontgomeryWord] representing the given value in Montgomery form.
-    #[inline]
-    fn const_word<U: WordLike<W, N>>(&self, value: U) -> MontgomeryWord<W, N, Self> {
-        return MontgomeryWord::new(value, *self);
-    }
-
-    /// Creates a [MontgomeryWordRef] representing the zero value in Montgomery form.
-    #[inline]
-    fn zero_word(&self) -> MontgomeryWord<W, N, Self> {
-        return MontgomeryWord::from_inner(CompositeWord::<W, N>::ZERO, *self);
-    }
-
-    /// Creates a [MontgomeryWordRef] representing the one value in Montgomery form.
-    #[inline]
-    fn one_word(&self) -> MontgomeryWord<W, N, Self> {
-        return MontgomeryWord::new(CompositeWord::<W, N>::ONE, *self);
-    }
 
     /// Performs Montgomery reduction on the given value.
     /// Returns the reduced value in Montgomery form.
@@ -191,20 +175,61 @@ pub trait MontgomeryMod<W: Word, const N: usize>: Clone + Copy + Debug + Partial
     }
 }
 
+/// Every [MontgomeryMod] is a [FieldRep] whose internal representation is the Montgomery form `a·R
+/// mod p`, with reduction by [MontgomeryMod::redc_wide] / [MontgomeryMod::redc_wide_const].
+impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> FieldRep<W, N> for M {
+    #[inline]
+    fn modulus(&self) -> CompositeWord<W, N> {
+        return self.n();
+    }
+    #[inline]
+    fn encode_const(&self, value: CompositeWord<W, N>) -> CompositeWord<W, N> {
+        return self.to_montgomery_const(value);
+    }
+    #[inline]
+    fn decode_const(&self, internal: CompositeWord<W, N>) -> CompositeWord<W, N> {
+        return self.from_montgomery_const(internal);
+    }
+    #[inline]
+    fn mul_reduce_const(
+        &self,
+        lo: CompositeWord<W, N>,
+        hi: CompositeWord<W, N>,
+    ) -> CompositeWord<W, N> {
+        return self.redc_wide_const(lo, hi);
+    }
+    #[inline]
+    fn encode<B: Backend>(&self, value: WordRef<B, W, N>) -> WordRef<B, W, N> {
+        return self.to_montgomery(value);
+    }
+    #[inline]
+    fn decode<B: Backend>(&self, internal: WordRef<B, W, N>) -> WordRef<B, W, N> {
+        return self.from_montgomery(internal);
+    }
+    #[inline]
+    fn mul_reduce<B: Backend>(
+        &self,
+        lo: WordRef<B, W, N>,
+        hi: WordRef<B, W, N>,
+    ) -> WordRef<B, W, N> {
+        return self.redc_wide(lo, hi);
+    }
+}
+
 /// Modular word value, with generic modulus.
 /// It is a wrapper around a [WordRef] enforcing the guarantee that the value is in Montgomery form.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MontgomeryWord<W: Word, const N: usize, M: MontgomeryMod<W, N>> {
+pub struct MontgomeryWord<W: Word, const N: usize, M: FieldRep<W, N>> {
     montgomery_val: CompositeWord<W, N>,
     modulus: M,
 }
 
-impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> MontgomeryWord<W, N, M> {
+impl<W: Word, const N: usize, M: FieldRep<W, N>> MontgomeryWord<W, N, M> {
     /// Converts the given value to Montgomery form.
     #[inline]
     pub fn new<U: WordLike<W, N>>(value: U, modulus: M) -> Self {
         return MontgomeryWord {
-            montgomery_val: modulus.to_montgomery_const(value.to_word()),
+            montgomery_val: modulus.encode_const(value.to_word()),
             modulus,
         };
     }
@@ -232,7 +257,7 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> MontgomeryWord<W, N, M> {
 
     /// Converts this value out of Montgomery form.
     pub fn value(self) -> CompositeWord<W, N> {
-        return self.modulus.from_montgomery_const(self.montgomery_val);
+        return self.modulus.decode_const(self.montgomery_val);
     }
 
     /// Returns the inner Montgomery value.
@@ -260,6 +285,12 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> MontgomeryWord<W, N, M> {
         return self.montgomery_val.is_nonzero();
     }
 
+}
+
+/// Inversion of a constant Montgomery word, available only for Montgomery moduli (it uses the
+/// Fermat exponent [MontgomeryMod::inv_exp]). Pseudo-Mersenne fields do not provide this build-time
+/// constant inverse; the in-circuit [MontgomeryWordRef::inv] (safegcd) works for both.
+impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> MontgomeryWord<W, N, M> {
     /// Modular inverse of this Montgomery word.
     pub fn inv(self) -> Self {
         let e = self.modulus.inv_exp();
@@ -273,7 +304,7 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> MontgomeryWord<W, N, M> {
     fn inv_by_rep_squaring(self, mut e: CompositeWord<W, N>) -> Self {
         let modulus = self.modulus;
         let mut res = MontgomeryWord {
-            montgomery_val: modulus.to_montgomery_const(CompositeWord::<W, N>::ONE),
+            montgomery_val: modulus.encode_const(CompositeWord::<W, N>::ONE),
             modulus: modulus,
         };
         let mut base = self;
@@ -288,7 +319,7 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> MontgomeryWord<W, N, M> {
     }
 }
 
-impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> Neg for MontgomeryWord<W, N, M> {
+impl<W: Word, const N: usize, M: FieldRep<W, N>> Neg for MontgomeryWord<W, N, M> {
     type Output = Self;
 
     /// Modular negation.
@@ -297,14 +328,14 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> Neg for MontgomeryWord<W, 
             return self;
         } else {
             return MontgomeryWord {
-                montgomery_val: self.modulus.n().wrapping_sub(self.montgomery_val),
+                montgomery_val: self.modulus.modulus().wrapping_sub(self.montgomery_val),
                 modulus: self.modulus,
             };
         }
     }
 }
 
-impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> Add<Self> for MontgomeryWord<W, N, M> {
+impl<W: Word, const N: usize, M: FieldRep<W, N>> Add<Self> for MontgomeryWord<W, N, M> {
     type Output = Self;
 
     /// Modular addition.
@@ -313,9 +344,9 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> Add<Self> for MontgomeryWo
             panic!("Cannot add modular words with different moduli");
         }
         let (res, carry) = self.montgomery_val.overflowing_add(rhs.montgomery_val);
-        if carry || res.ge(self.modulus.n()) {
+        if carry || res.ge(self.modulus.modulus()) {
             return MontgomeryWord {
-                montgomery_val: res.wrapping_sub(self.modulus.n()),
+                montgomery_val: res.wrapping_sub(self.modulus.modulus()),
                 modulus: self.modulus,
             };
         } else {
@@ -327,7 +358,7 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> Add<Self> for MontgomeryWo
     }
 }
 
-impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> Sub<Self> for MontgomeryWord<W, N, M> {
+impl<W: Word, const N: usize, M: FieldRep<W, N>> Sub<Self> for MontgomeryWord<W, N, M> {
     type Output = Self;
     /// Modular subtraction.
     fn sub(self, rhs: Self) -> Self::Output {
@@ -337,7 +368,7 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> Sub<Self> for MontgomeryWo
         let (res, borrow) = self.montgomery_val.overflowing_sub(rhs.montgomery_val);
         if borrow {
             return MontgomeryWord {
-                montgomery_val: res.wrapping_add(self.modulus.n()),
+                montgomery_val: res.wrapping_add(self.modulus.modulus()),
                 modulus: self.modulus,
             };
         } else {
@@ -349,7 +380,7 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> Sub<Self> for MontgomeryWo
     }
 }
 
-impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> Mul<Self> for MontgomeryWord<W, N, M> {
+impl<W: Word, const N: usize, M: FieldRep<W, N>> Mul<Self> for MontgomeryWord<W, N, M> {
     type Output = Self;
     /// Modular multiplication.
     fn mul(self, rhs: Self) -> Self::Output {
@@ -358,7 +389,7 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> Mul<Self> for MontgomeryWo
         }
         let (res_lo, res_hi) = self.montgomery_val.wide_mul(rhs.montgomery_val);
         return MontgomeryWord {
-            montgomery_val: self.modulus.redc_wide_const(res_lo, res_hi),
+            montgomery_val: self.modulus.mul_reduce_const(res_lo, res_hi),
             modulus: self.modulus,
         };
     }
@@ -367,12 +398,12 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> Mul<Self> for MontgomeryWo
 /// Word reference to a modular value, with generic modulus.
 /// It is a wrapper around a [WordRef] enforcing the guarantee that the value is in Montgomery form.
 #[derive(Debug)]
-pub struct MontgomeryWordRef<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> {
+pub struct MontgomeryWordRef<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> {
     montgomery_val: WordRef<B, W, N>,
     modulus: M,
 }
 
-impl<B: Backend, M: MontgomeryMod<W, N>, W: Word, const N: usize> Clone
+impl<B: Backend, M: FieldRep<W, N>, W: Word, const N: usize> Clone
     for MontgomeryWordRef<B, W, N, M>
 {
     fn clone(&self) -> Self {
@@ -383,11 +414,11 @@ impl<B: Backend, M: MontgomeryMod<W, N>, W: Word, const N: usize> Clone
     }
 }
 
-impl<B: Backend, M: MontgomeryMod<W, N>, W: Word, const N: usize> MontgomeryWordRef<B, W, N, M> {
+impl<B: Backend, M: FieldRep<W, N>, W: Word, const N: usize> MontgomeryWordRef<B, W, N, M> {
     /// Converts the given value to Montgomery form.
     pub fn new(value: WordRef<B, W, N>, modulus: M) -> Self {
         return MontgomeryWordRef {
-            montgomery_val: modulus.to_montgomery(value),
+            montgomery_val: modulus.encode(value),
             modulus,
         };
     }
@@ -415,7 +446,7 @@ impl<B: Backend, M: MontgomeryMod<W, N>, W: Word, const N: usize> MontgomeryWord
 
     /// Converts this value out of Montgomery form.
     pub fn value(self) -> WordRef<B, W, N> {
-        return self.modulus.from_montgomery(self.montgomery_val);
+        return self.modulus.decode(self.montgomery_val);
     }
 
     /// Returns the inner Montgomery value.
@@ -473,10 +504,10 @@ impl<B: Backend, M: MontgomeryMod<W, N>, W: Word, const N: usize> MontgomeryWord
     pub fn add_const(self, rhs: CompositeWord<W, N>) -> Self {
         let (res, carry) = self
             .montgomery_val
-            .overflowing_add_const(self.modulus.to_montgomery_const(rhs));
+            .overflowing_add_const(self.modulus.encode_const(rhs));
         return Self {
-            montgomery_val: (carry | res.clone().ge_const(self.modulus.n()))
-                .select(res.clone() - self.modulus.n(), res),
+            montgomery_val: (carry | res.clone().ge_const(self.modulus.modulus()))
+                .select(res.clone() - self.modulus.modulus(), res),
             modulus: self.modulus,
         };
     }
@@ -485,9 +516,9 @@ impl<B: Backend, M: MontgomeryMod<W, N>, W: Word, const N: usize> MontgomeryWord
     pub fn mul_const(self, rhs: CompositeWord<W, N>) -> Self {
         let (res_lo, res_hi) = self
             .montgomery_val
-            .wide_mul_const(self.modulus.to_montgomery_const(rhs));
+            .wide_mul_const(self.modulus.encode_const(rhs));
         return Self {
-            montgomery_val: self.modulus.redc_wide(res_lo, res_hi),
+            montgomery_val: self.modulus.mul_reduce(res_lo, res_hi),
             modulus: self.modulus,
         };
     }
@@ -508,7 +539,7 @@ impl<B: Backend, M: MontgomeryMod<W, N>, W: Word, const N: usize> MontgomeryWord
     pub fn into_const(self, word: CompositeWord<W, N>) -> Self {
         let modulus = self.modulus;
         let montgomery_val = self.montgomery_val;
-        let word = modulus.to_montgomery_const(word);
+        let word = modulus.encode_const(word);
         return Self {
             montgomery_val: montgomery_val.into_const_same_width(word),
             modulus,
@@ -538,16 +569,16 @@ impl<B: Backend, M: MontgomeryMod<W, N>, W: Word, const N: usize> MontgomeryWord
     pub fn inv(self) -> Self {
         let modulus = self.modulus;
         // safegcd works on the canonical integer residue; convert in, invert, convert back.
-        let a_int = modulus.from_montgomery(self.montgomery_val);
-        let inv_int = crate::safegcd::safegcd_invert(a_int, modulus.n());
+        let a_int = modulus.decode(self.montgomery_val);
+        let inv_int = crate::safegcd::safegcd_invert(a_int, modulus.modulus());
         return Self {
-            montgomery_val: modulus.to_montgomery(inv_int),
+            montgomery_val: modulus.encode(inv_int),
             modulus,
         };
     }
 }
 
-impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Neg
+impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> Neg
     for MontgomeryWordRef<B, W, N, M>
 {
     type Output = Self;
@@ -559,13 +590,13 @@ impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Neg
             montgomery_val: value
                 .clone()
                 .is_zero()
-                .select(value.clone(), -value + self.modulus.n()),
+                .select(value.clone(), -value + self.modulus.modulus()),
             modulus: self.modulus,
         };
     }
 }
 
-impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Add<Self>
+impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> Add<Self>
     for MontgomeryWordRef<B, W, N, M>
 {
     type Output = Self;
@@ -577,14 +608,14 @@ impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Add<Self>
         }
         let (res, carry) = self.montgomery_val.overflowing_add(rhs.montgomery_val);
         return Self {
-            montgomery_val: (carry | res.clone().ge_const(self.modulus.n()))
-                .select(res.clone() - self.modulus.n(), res),
+            montgomery_val: (carry | res.clone().ge_const(self.modulus.modulus()))
+                .select(res.clone() - self.modulus.modulus(), res),
             modulus: self.modulus,
         };
     }
 }
 
-impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Add<MontgomeryWord<W, N, M>>
+impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> Add<MontgomeryWord<W, N, M>>
     for MontgomeryWordRef<B, W, N, M>
 {
     type Output = Self;
@@ -598,14 +629,14 @@ impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Add<Montgomery
             .montgomery_val
             .overflowing_add_const(rhs.montgomery_val);
         return Self {
-            montgomery_val: (carry | res.clone().ge_const(self.modulus.n()))
-                .select(res.clone() - self.modulus.n(), res),
+            montgomery_val: (carry | res.clone().ge_const(self.modulus.modulus()))
+                .select(res.clone() - self.modulus.modulus(), res),
             modulus: self.modulus,
         };
     }
 }
 
-impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Sub<Self>
+impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> Sub<Self>
     for MontgomeryWordRef<B, W, N, M>
 {
     type Output = Self;
@@ -617,13 +648,13 @@ impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Sub<Self>
 
         let (res, borrow) = self.montgomery_val.overflowing_sub(rhs.montgomery_val);
         return Self {
-            montgomery_val: borrow.select(res.clone() + self.modulus.n(), res),
+            montgomery_val: borrow.select(res.clone() + self.modulus.modulus(), res),
             modulus: self.modulus,
         };
     }
 }
 
-impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Sub<MontgomeryWord<W, N, M>>
+impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> Sub<MontgomeryWord<W, N, M>>
     for MontgomeryWordRef<B, W, N, M>
 {
     type Output = Self;
@@ -637,13 +668,13 @@ impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Sub<Montgomery
             .montgomery_val
             .overflowing_sub_const(rhs.montgomery_val);
         return Self {
-            montgomery_val: borrow.select(res.clone() + self.modulus.n(), res),
+            montgomery_val: borrow.select(res.clone() + self.modulus.modulus(), res),
             modulus: self.modulus,
         };
     }
 }
 
-impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Mul<Self>
+impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> Mul<Self>
     for MontgomeryWordRef<B, W, N, M>
 {
     type Output = Self;
@@ -654,13 +685,13 @@ impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Mul<Self>
         }
         let (res_lo, res_hi) = self.montgomery_val.wide_mul(rhs.montgomery_val);
         return Self {
-            montgomery_val: self.modulus.redc_wide(res_lo, res_hi),
+            montgomery_val: self.modulus.mul_reduce(res_lo, res_hi),
             modulus: self.modulus,
         };
     }
 }
 
-impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Mul<MontgomeryWord<W, N, M>>
+impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> Mul<MontgomeryWord<W, N, M>>
     for MontgomeryWordRef<B, W, N, M>
 {
     type Output = Self;
@@ -671,7 +702,7 @@ impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> Mul<Montgomery
         }
         let (res_lo, res_hi) = self.montgomery_val.wide_mul_const(rhs.montgomery_val);
         return Self {
-            montgomery_val: self.modulus.redc_wide(res_lo, res_hi),
+            montgomery_val: self.modulus.mul_reduce(res_lo, res_hi),
             modulus: self.modulus,
         };
     }
@@ -682,7 +713,7 @@ pub trait MontgomeryBooleanWordRefSelector<
     B: Backend,
     W: Word,
     const N: usize,
-    M: MontgomeryMod<W, N>,
+    M: FieldRep<W, N>,
 >
 {
     /// Selects between two constant Montgomery words.
@@ -714,7 +745,7 @@ pub trait MontgomeryBooleanWordRefSelector<
     ) -> MontgomeryWordRef<B, W, N, M>;
 }
 
-impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>>
+impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>>
     MontgomeryBooleanWordRefSelector<B, W, N, M> for BooleanWordRef<B>
 {
     fn montgomery_select_const_const(
@@ -783,7 +814,7 @@ impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>>
 }
 
 /// Helper trait implementing Montgomery word allocation from a [WordRef].
-pub trait MontgomeryWordRefAllocator<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> {
+pub trait MontgomeryWordRefAllocator<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> {
     /// Variant of [WordRef::alloc_constant] for Montgomery words.
     fn alloc_montgomery_constant(
         &self,
@@ -791,7 +822,7 @@ pub trait MontgomeryWordRefAllocator<B: Backend, W: Word, const N: usize, M: Mon
     ) -> MontgomeryWordRef<B, W, N, M>;
 }
 
-impl<_B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>, _W: Word, const _N: usize>
+impl<_B: Backend, W: Word, const N: usize, M: FieldRep<W, N>, _W: Word, const _N: usize>
     MontgomeryWordRefAllocator<_B, W, N, M> for WordRef<_B, _W, _N>
 {
     fn alloc_montgomery_constant(
@@ -806,7 +837,7 @@ impl<_B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>, _W: Word, con
 }
 
 /// Helper trait implementing Montgomery word allocation for a [Frontend].
-pub trait MontgomeryFrontendIO<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> {
+pub trait MontgomeryFrontendIO<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> {
     /// Variant of [Frontend::input] for Montgomery words.
     fn montgomery_input(&self, in_: MontgomeryWord<W, N, M>) -> MontgomeryWordRef<B, W, N, M>;
 
@@ -817,7 +848,7 @@ pub trait MontgomeryFrontendIO<B: Backend, W: Word, const N: usize, M: Montgomer
     fn montgomery_output(&self, out: MontgomeryWordRef<B, W, N, M>);
 }
 
-impl<B: Backend, W: Word, const N: usize, M: MontgomeryMod<W, N>> MontgomeryFrontendIO<B, W, N, M>
+impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> MontgomeryFrontendIO<B, W, N, M>
     for Frontend<B>
 {
     fn montgomery_input(&self, in_: MontgomeryWord<W, N, M>) -> MontgomeryWordRef<B, W, N, M> {
