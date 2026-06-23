@@ -3,6 +3,7 @@
 //! Modular arithmetic primitives for the [zkboo] crate.
 
 #![no_std]
+pub mod field;
 pub mod montgomery;
 pub mod pseudo_mersenne;
 pub mod safegcd;

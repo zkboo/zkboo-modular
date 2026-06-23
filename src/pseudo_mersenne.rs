@@ -57,3 +57,76 @@ pub fn mul<B: Backend, W: Word, const N: usize, M: PseudoMersenneMod<W, N>>(
     let (lo, hi) = a.wide_mul(b);
     return reduce_wide(modulus, lo, hi);
 }
+
+/// Builds-time (native) analogue of [reduce_wide].
+pub fn reduce_wide_const<W: Word, const N: usize, M: PseudoMersenneMod<W, N>>(
+    modulus: &M,
+    lo: CompositeWord<W, N>,
+    hi: CompositeWord<W, N>,
+) -> CompositeWord<W, N> {
+    let c = modulus.c();
+    let p = modulus.p();
+    let (h1_lo, h1_hi) = hi.wide_mul(c);
+    let (s1, carry1) = lo.overflowing_add(h1_lo);
+    let top1 = h1_hi.wrapping_add(CompositeWord::<W, N>::from_bool(carry1));
+    let t2 = top1.wrapping_mul(c);
+    let (s2, carry2) = s1.overflowing_add(t2);
+    let (s3, carry3) = s2.overflowing_add(if carry2 { c } else { CompositeWord::ZERO });
+    let s4 = if carry3 { s3.wrapping_add(c) } else { s3 };
+    let s5 = if s4.ge(p) { s4.wrapping_sub(p) } else { s4 };
+    return if s5.ge(p) { s5.wrapping_sub(p) } else { s5 };
+}
+
+/// Implements [crate::field::FieldRep] for a concrete [PseudoMersenneMod] type, so the shared field
+/// element type ([crate::montgomery::MontgomeryWord] / [crate::montgomery::MontgomeryWordRef]) can
+/// be backed by pseudo-Mersenne reduction.
+#[macro_export]
+macro_rules! impl_pseudo_mersenne_field_rep {
+    ($t:ty, $w:ty, $n:literal) => {
+        impl $crate::field::FieldRep<$w, $n> for $t {
+            fn modulus(&self) -> ::zkboo::word::CompositeWord<$w, $n> {
+                return $crate::pseudo_mersenne::PseudoMersenneMod::p(self);
+            }
+            fn encode_const(
+                &self,
+                value: ::zkboo::word::CompositeWord<$w, $n>,
+            ) -> ::zkboo::word::CompositeWord<$w, $n> {
+                let p = $crate::pseudo_mersenne::PseudoMersenneMod::p(self);
+                return if value.ge(p) { value.wrapping_sub(p) } else { value };
+            }
+            fn decode_const(
+                &self,
+                internal: ::zkboo::word::CompositeWord<$w, $n>,
+            ) -> ::zkboo::word::CompositeWord<$w, $n> {
+                return internal;
+            }
+            fn mul_reduce_const(
+                &self,
+                lo: ::zkboo::word::CompositeWord<$w, $n>,
+                hi: ::zkboo::word::CompositeWord<$w, $n>,
+            ) -> ::zkboo::word::CompositeWord<$w, $n> {
+                return $crate::pseudo_mersenne::reduce_wide_const(self, lo, hi);
+            }
+            fn encode<B: ::zkboo::backend::Backend>(
+                &self,
+                value: ::zkboo::backend::WordRef<B, $w, $n>,
+            ) -> ::zkboo::backend::WordRef<B, $w, $n> {
+                let p = $crate::pseudo_mersenne::PseudoMersenneMod::p(self);
+                return value.clone().ge_const(p).select(value.clone() - p, value);
+            }
+            fn decode<B: ::zkboo::backend::Backend>(
+                &self,
+                internal: ::zkboo::backend::WordRef<B, $w, $n>,
+            ) -> ::zkboo::backend::WordRef<B, $w, $n> {
+                return internal;
+            }
+            fn mul_reduce<B: ::zkboo::backend::Backend>(
+                &self,
+                lo: ::zkboo::backend::WordRef<B, $w, $n>,
+                hi: ::zkboo::backend::WordRef<B, $w, $n>,
+            ) -> ::zkboo::backend::WordRef<B, $w, $n> {
+                return $crate::pseudo_mersenne::reduce_wide(self, lo, hi);
+            }
+        }
+    };
+}
