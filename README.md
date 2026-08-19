@@ -1,8 +1,8 @@
 # ZKBoo-Modular
 
 ![Rust](https://img.shields.io/badge/rust-1.92+-orange.svg)
-[![Crates.io](https://img.shields.io/crates/v/zkboo.svg)](https://crates.io/crates/zkboo-modular)
-[![Docs.rs](https://docs.rs/zkboo/badge.svg)](https://docs.rs/zkboo-modular)
+[![Crates.io](https://img.shields.io/crates/v/zkboo-modular.svg)](https://crates.io/crates/zkboo-modular)
+[![Docs.rs](https://docs.rs/zkboo-modular/badge.svg)](https://docs.rs/zkboo-modular)
 
 Modular arithmetic primitives for the [ZKBoo](https://crates.io/crates/zkboo) ecosystem.
 
