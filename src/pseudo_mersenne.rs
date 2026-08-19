@@ -42,10 +42,12 @@ pub fn reduce_wide<B: Backend, W: Word, const N: usize, M: PseudoMersenneMod<W, 
     let s4 = s3.wrapping_add(add_c2);
 
     // s4 is now < 2^WIDTH + (small); bring it into [0, p) with up to two conditional subtractions.
-    let ge1 = s4.clone().ge_const(p);
-    let s5 = ge1.select(s4.clone() - p, s4);
-    let ge2 = s5.clone().ge_const(p);
-    return ge2.select(s5.clone() - p, s5);
+    // Each subtracts once and reuses the borrow as the condition (rather than recomputing the
+    // difference in `ge_const` and again in `select`).
+    let (s5_sub, borrow1) = s4.clone().overflowing_sub_const(p);
+    let s5 = borrow1.select(s4, s5_sub);
+    let (s6_sub, borrow2) = s5.clone().overflowing_sub_const(p);
+    return borrow2.select(s5, s6_sub);
 }
 
 /// Field multiplication `a · b mod p` in canonical (non-Montgomery) form.
@@ -112,7 +114,8 @@ macro_rules! impl_pseudo_mersenne_field_rep {
                 value: ::zkboo::backend::WordRef<B, $w, $n>,
             ) -> ::zkboo::backend::WordRef<B, $w, $n> {
                 let p = $crate::pseudo_mersenne::PseudoMersenneMod::p(self);
-                return value.clone().ge_const(p).select(value.clone() - p, value);
+                let (sub, borrow) = value.clone().overflowing_sub_const(p);
+                return borrow.select(value, sub);
             }
             fn decode<B: ::zkboo::backend::Backend>(
                 &self,

@@ -58,8 +58,10 @@ pub trait MontgomeryMod<W: Word, const N: usize>: Clone + Copy + Debug + Partial
         let (_, t_lo_carry) = lo.overflowing_add(mn_lo);
         let (mut t, t_hi_lo_carry) = mn_hi.overflowing_add(WordRef::from_bool(t_lo_carry));
         t = t_hi_lo_carry.select(t.clone() + n.wrapping_neg(), t);
-        t = t.clone().ge_const(n).select(t.clone() - n, t);
-        return t;
+        // Final conditional subtraction `t < n ? t : t - n`. Subtract once and reuse the borrow
+        // as the condition, rather than computing `t - n` separately in `ge_const` and `select`.
+        let (t_sub, borrow) = t.clone().overflowing_sub_const(n);
+        return borrow.select(t, t_sub);
     }
 
     /// Performs Montgomery reduction on the given wide value, specified as two limbs `(lo, hi)`.
@@ -84,8 +86,10 @@ pub trait MontgomeryMod<W: Word, const N: usize>: Clone + Copy + Debug + Partial
         let (mut t, t_hi_lo_carry) = t.overflowing_add(WordRef::from_bool(t_lo_carry));
         t = t_hi_carry.select(t.clone() + n.wrapping_neg(), t);
         t = t_hi_lo_carry.select(t.clone() + n.wrapping_neg(), t);
-        t = t.clone().ge_const(n).select(t.clone() - n, t);
-        return t;
+        // Final conditional subtraction `t < n ? t : t - n`. Subtract once and reuse the borrow
+        // as the condition, rather than computing `t - n` separately in `ge_const` and `select`.
+        let (t_sub, borrow) = t.clone().overflowing_sub_const(n);
+        return borrow.select(t, t_sub);
     }
 
     /// Converts a given value to Montgomery form.
