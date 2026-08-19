@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #[allow(dead_code)]
 pub fn modinv_i128(a: i128, m: i128) -> Option<i128> {
     let (mut t, mut new_t) = (0, 1);
