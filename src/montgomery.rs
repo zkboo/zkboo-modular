@@ -564,8 +564,10 @@ impl<B: Backend, M: FieldRep<W, N>, W: Word, const N: usize> MontgomeryWordRef<B
     ///
     /// Uses the constant-time Bernstein–Yang safegcd algorithm (see [crate::safegcd]), which needs
     /// only that the modulus be odd and `self` be coprime to it — no [MontgomeryMod::inv_exp] is
-    /// required. For an invertible value it returns the inverse in Montgomery form; for a
-    /// non-invertible value (e.g. zero) it returns zero, matching the Fermat convention.
+    /// required. For an invertible value it returns the inverse in Montgomery form; `zero` returns
+    /// zero. Under a **prime** modulus (every field this crate ships) zero is the only
+    /// non-invertible input; under a **composite** odd modulus a nonzero non-coprime value yields
+    /// an unspecified result, so such callers must ensure coprimality (see [crate::safegcd::safegcd_invert]).
     pub fn inv(self) -> Self {
         let modulus = self.modulus;
         // safegcd works on the canonical integer residue; convert in, invert, convert back.
