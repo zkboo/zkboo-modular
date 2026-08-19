@@ -108,12 +108,17 @@ fn halve_mod_p<B: Backend, W: Word, const N: usize>(
 }
 
 /// Computes `a^{-1} mod p` for an `N`-word value `a ∈ [0, p)` and odd modulus `p`, in constant
-/// time. Returns `0` when `a` is not invertible (e.g. `a == 0`), matching the Fermat convention.
+/// time.
 pub fn safegcd_invert<B: Backend, W: Word, const N: usize>(
     a: WordRef<B, W, N>,
     p: CompositeWord<W, N>,
 ) -> WordRef<B, W, N> {
     let width = W::WIDTH * N;
+    assert!(
+        W::WIDTH >= 16 || width + 2 < (1usize << (W::WIDTH - 1)),
+        "safegcd: field width too large for the signed divstep counter in a {}-bit word",
+        W::WIDTH,
+    );
     let iters = divstep_count(width);
 
     // State.
