@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #[macro_export]
 #[doc(hidden)]
 macro_rules! _on_given_words {
