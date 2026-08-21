@@ -1,6 +1,6 @@
 [package]
 name = "zkboo-modular"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 description = "Modular arithmetic primitives for the ZKBoo ecosystem."
 license = "LGPL-3.0-or-later"
@@ -10,10 +10,10 @@ keywords = ["zk", "zero-knowledge", "zkboo"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-zkboo = "0.1.0"
+zkboo = "1.0.0"
 
 [dev-dependencies]
-zkboo = { version = "0.1.0", features = [
+zkboo = { version = "1.0.0", features = [
     "u16",
     "u32",
     "u64",
@@ -30,4 +30,4 @@ zeroize = { version = "1.8.2", default-features = false, features = [
     "alloc",
 ] }
 dashu-int = "0.4.1"
-zkboo-profiling = "0.1.0"
+zkboo-profiling = "1.0.0"
