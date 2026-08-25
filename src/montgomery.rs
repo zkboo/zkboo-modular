@@ -575,6 +575,15 @@ impl<B: Backend, M: FieldRep<W, N>, W: Word, const N: usize> MontgomeryWordRef<B
         };
     }
 
+    /// Modular square, by the dedicated squarer rather than a multiplication.
+    pub fn square(self) -> Self {
+        let (low, high) = self.montgomery_val.wide_square();
+        return Self {
+            montgomery_val: self.modulus.mul_reduce(low, high),
+            modulus: self.modulus,
+        };
+    }
+
     /// Modular inverse of this Montgomery word.
     ///
     /// Uses the constant-time Bernstein–Yang safegcd algorithm (see [crate::safegcd]), which needs
