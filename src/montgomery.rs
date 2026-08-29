@@ -291,17 +291,14 @@ impl<W: Word, const N: usize, M: FieldRep<W, N>> MontgomeryWord<W, N, M> {
 
 }
 
-/// Inversion of a constant Montgomery word, available only for Montgomery moduli (it uses the
-/// Fermat exponent [MontgomeryMod::inv_exp]). Pseudo-Mersenne fields do not provide this build-time
-/// constant inverse; the in-circuit [MontgomeryWordRef::inv] (safegcd) works for both.
-impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> MontgomeryWord<W, N, M> {
-    /// Modular inverse of this Montgomery word.
-    pub fn inv(self) -> Self {
-        let e = self.modulus.inv_exp();
-        return match e {
-            Some(e) => self.inv_by_rep_squaring(e),
-            None => unimplemented!("Cannot yet compute inverse without explicit inverse exponent."),
-        };
+/// Native inversion of a constant field element, by Fermat's little theorem.
+impl<W: Word, const N: usize, M: FieldRep<W, N>> MontgomeryWord<W, N, M> {
+    /// Modular inverse of this field element, assuming a **prime** modulus: `x^(p−2)` by
+    /// square-and-multiply, about `1.5 · width` native field multiplications.
+    pub(crate) fn fermat_inv(self) -> Self {
+        let two = CompositeWord::<W, N>::ONE << 1;
+        let exponent = self.modulus.modulus().wrapping_sub(two);
+        return self.inv_by_rep_squaring(exponent);
     }
 
     /// Helper function implementing modular inversion by repeated squaring.
@@ -320,6 +317,20 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> MontgomeryWord<W, N, M> {
             e = e >> 1;
         }
         return res;
+    }
+}
+
+/// Inversion of a constant Montgomery word by the modulus's declared inversion exponent
+/// ([MontgomeryMod::inv_exp]), which a composite modulus may set to a Carmichael exponent or to
+/// `None`.
+impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> MontgomeryWord<W, N, M> {
+    /// Modular inverse of this Montgomery word.
+    pub fn inv(self) -> Self {
+        let e = self.modulus.inv_exp();
+        return match e {
+            Some(e) => self.inv_by_rep_squaring(e),
+            None => unimplemented!("Cannot yet compute inverse without explicit inverse exponent."),
+        };
     }
 }
 

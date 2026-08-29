@@ -42,6 +42,17 @@ pub trait FieldRep<W: Word, const N: usize>: Clone + Copy + Debug + PartialEq + 
         hi: WordRef<B, W, N>,
     ) -> WordRef<B, W, N>;
 
+    /// Native modular inverse of an internal value, in the internal representation.
+    #[inline]
+    fn invert_const(&self, internal: CompositeWord<W, N>) -> CompositeWord<W, N>
+    where
+        Self: Sized,
+    {
+        return MontgomeryWord::from_inner(internal, *self)
+            .fermat_inv()
+            .into_inner();
+    }
+
     /// Creates a constant field element representing the given canonical value.
     #[inline]
     fn const_word<U: WordLike<W, N>>(&self, value: U) -> MontgomeryWord<W, N, Self>
