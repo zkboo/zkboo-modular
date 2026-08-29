@@ -6,6 +6,7 @@ use crate::field::FieldRep;
 use core::fmt::Debug;
 use core::ops::{Add, Mul, Neg, Sub};
 use zkboo::backend::{BooleanWordRef, Frontend};
+use zkboo::circuit::Assertions;
 use zkboo::{
     backend::{Backend, WordRef},
     word::{CompositeWord, Word, WordLike},
@@ -582,6 +583,26 @@ impl<B: Backend, M: FieldRep<W, N>, W: Word, const N: usize> MontgomeryWordRef<B
             montgomery_val: self.modulus.mul_reduce(low, high),
             modulus: self.modulus,
         };
+    }
+
+    /// Modular inverse from prover-supplied advice, asserted rather than computed.
+    pub fn inv_advised(self, advice: Self, assertions: &mut Assertions<B>) -> Self {
+        let (value, modulus) = self.destructure();
+        let value = Self::from_inner(value, modulus);
+        let result = advice.clone();
+        // z · z⁻¹ is 1 for an invertible z and 0 for zero — which is exactly `z != 0` as a field
+        // element, so one comparison covers both cases.
+        let is_nonzero = value.clone().is_nonzero();
+        let expected = is_nonzero
+            .clone()
+            .montgomery_select_const_const(modulus.one_word(), modulus.zero_word());
+        (value * advice.clone())
+            .eq(expected)
+            .assert_into(assertions);
+        // ... but it says nothing about the advice when z is zero, so pin that case too, or the
+        // prover picks the inverse of zero and everything computed from it.
+        (is_nonzero | advice.is_zero()).assert_into(assertions);
+        return result;
     }
 
     /// Modular inverse of this Montgomery word.
