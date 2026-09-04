@@ -15,6 +15,7 @@ use zkboo::{
     word::{CompositeWord, Words},
 };
 use zkboo_modular::montgomery::{MontgomeryFrontendIO, MontgomeryMod, MontgomeryWordRef};
+use zkboo::executor::ExecOptions;
 
 type WP = OwnedFlexibleWordPool<usize>;
 
@@ -54,7 +55,7 @@ impl Circuit for InvCheck {
 }
 
 fn check(a: CompositeWord<u128, 2>, expect_one: bool) {
-    let outputs = exec::<_, WP>(&InvCheck { a });
+    let outputs = exec::<_, WP, _>(&InvCheck { a }, ExecOptions::new());
     let mut expected = Words::new();
     let want = if expect_one {
         CompositeWord::<u128, 2>::ONE

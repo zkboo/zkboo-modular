@@ -94,7 +94,7 @@ macro_rules! _define_test_func {
                         )*
                         // Test execution:
                         let circuit = TestCircuit {$($in: [<_ $in>],)* $($param_name,)*};
-                        let outputs = exec::<_, WP>(&circuit);
+                        let outputs = exec::<_, WP, _>(&circuit, ExecOptions::new());
                         // Reference execution:
                         $(
                             let $in = [<_ $in>];
