@@ -18,6 +18,7 @@ use zkboo::{
 use zkboo_modular::field::FieldRep;
 use zkboo_modular::montgomery::{MontgomeryFrontendIO, MontgomeryMod, MontgomeryWordRef};
 use zkboo_profiling::profile;
+use zkboo::executor::ExecOptions;
 
 type WP = OwnedFlexibleWordPool<usize>;
 type Word2 = CompositeWord<u128, 2>;
@@ -174,10 +175,10 @@ fn flag(words: &Words) -> u8 {
 #[test]
 fn the_advised_inverse_agrees_with_the_in_circuit_one() {
     for a in probe_values() {
-        let out = exec::<_, WP>(&BothInverses {
+        let out = exec::<_, WP, _>(&BothInverses {
             a,
             advice: advice_for(Secp256k1, a),
-        });
+        }, ExecOptions::new());
         assert_eq!(flag(&out), 1, "assertions failed for a={a:?}");
         let limbs = &out.u128;
         assert_eq!(limbs.len(), 4, "two inverses of two limbs each");
@@ -196,7 +197,7 @@ fn a_lie_about_an_invertible_value_is_caught() {
         lie_about_zero: false,
     };
     for a in probe_values().into_iter().filter(|a| a.is_nonzero()) {
-        let out = exec::<_, WP>(&AdvisedInverse::new(a, field));
+        let out = exec::<_, WP, _>(&AdvisedInverse::new(a, field), ExecOptions::new());
         assert_eq!(
             flag(&out),
             0,
@@ -214,7 +215,7 @@ fn a_lie_about_the_inverse_of_zero_is_caught() {
         lie_about_nonzero: false,
         lie_about_zero: true,
     };
-    let out = exec::<_, WP>(&AdvisedInverse::new(Word2::ZERO, field));
+    let out = exec::<_, WP, _>(&AdvisedInverse::new(Word2::ZERO, field), ExecOptions::new());
     assert_eq!(flag(&out), 0, "a nonzero inverse of zero passed the assertions");
 }
 
@@ -227,7 +228,7 @@ fn an_honest_prover_over_the_delegating_field_is_accepted() {
         lie_about_zero: false,
     };
     for a in probe_values() {
-        let out = exec::<_, WP>(&AdvisedInverse::new(a, field));
+        let out = exec::<_, WP, _>(&AdvisedInverse::new(a, field), ExecOptions::new());
         assert_eq!(flag(&out), 1, "honest advice rejected for a={a:?}");
     }
 }

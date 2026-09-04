@@ -11,6 +11,7 @@ use zkboo::{
     word::{CompositeWord, Words},
 };
 use zkboo_modular::pseudo_mersenne::{self, PseudoMersenneMod};
+use zkboo::executor::ExecOptions;
 
 type WP = OwnedFlexibleWordPool<usize>;
 
@@ -60,7 +61,7 @@ impl Circuit for PmMul {
 }
 
 fn check_mul(a: CompositeWord<u64, 4>, b: CompositeWord<u64, 4>) {
-    let outputs = exec::<_, WP>(&PmMul { a, b });
+    let outputs = exec::<_, WP, _>(&PmMul { a, b }, ExecOptions::new());
     let want = (to_ubig(a) * to_ubig(b)) % p_ubig();
     // Encode the expected residue back into 4 little-endian u64 words.
     let mut words = [0u64; 4];
