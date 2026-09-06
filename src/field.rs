@@ -6,7 +6,7 @@
 //! ([crate::montgomery::MontgomeryMod]) or pseudo-Mersenne reduction
 //! ([crate::pseudo_mersenne::PseudoMersenneMod]).
 
-use crate::montgomery::MontgomeryWord;
+use crate::montgomery::{Montgomery, MontgomeryWord};
 use zkboo::backend::{Backend, WordRef};
 use zkboo::word::{CompositeWord, Word, WordLike};
 use core::fmt::Debug;
@@ -48,9 +48,10 @@ pub trait FieldRep<W: Word, const N: usize>: Clone + Copy + Debug + PartialEq + 
     where
         Self: Sized,
     {
-        return MontgomeryWord::from_inner(internal, *self)
+        return MontgomeryWord::from_inner(Montgomery::from_raw(internal), *self)
             .fermat_inv()
-            .into_inner();
+            .into_inner()
+            .into_raw();
     }
 
     /// Creates a constant field element representing the given canonical value.
@@ -68,7 +69,7 @@ pub trait FieldRep<W: Word, const N: usize>: Clone + Copy + Debug + PartialEq + 
     where
         Self: Sized,
     {
-        return MontgomeryWord::from_inner(CompositeWord::<W, N>::ZERO, *self);
+        return MontgomeryWord::from_inner(Montgomery::ZERO, *self);
     }
 
     /// Creates the constant field element one.

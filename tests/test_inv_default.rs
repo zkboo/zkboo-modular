@@ -54,7 +54,7 @@ fn check_inv(p: u32, a: u32) {
     let aw = MontgomeryWordRef::new(executor.input(a), m);
     let inv = aw.clone().inv();
     let prod = aw * inv;
-    executor.output(prod.value());
+    executor.output(prod.canonical());
     let out: u32 = executor.finalize().as_vec()[0];
     assert_eq!(out, 1, "a * a^-1 should be 1 mod {p} (a = {a})");
 }
