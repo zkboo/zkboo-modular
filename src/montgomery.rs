@@ -6,6 +6,7 @@ use crate::field::FieldRep;
 use core::fmt::Debug;
 use core::ops::{Add, Mul, Neg, Sub};
 use zkboo::backend::{BooleanWordRef, Frontend};
+use zeroize::Zeroize;
 use zkboo::circuit::Assertions;
 use zkboo::{
     backend::{Backend, WordRef},
@@ -227,6 +228,13 @@ impl<W: Word, const N: usize, M: MontgomeryMod<W, N>> FieldRep<W, N> for M {
 pub struct MontgomeryWord<W: Word, const N: usize, M: FieldRep<W, N>> {
     montgomery_val: CompositeWord<W, N>,
     modulus: M,
+}
+
+impl<W: Word, const N: usize, M: FieldRep<W, N>> Zeroize for MontgomeryWord<W, N, M> {
+    /// Zeroizes the value, leaving the modulus alone.
+    fn zeroize(&mut self) {
+        self.montgomery_val.zeroize();
+    }
 }
 
 impl<W: Word, const N: usize, M: FieldRep<W, N>> MontgomeryWord<W, N, M> {

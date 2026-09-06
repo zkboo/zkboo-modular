@@ -11,6 +11,7 @@ categories = ["cryptography", "no-std"]
 
 [dependencies]
 zkboo = "1.0.0"
+zeroize = { version = "1.8.2", default-features = false }
 
 [dev-dependencies]
 zkboo = { version = "1.2.0", features = [
