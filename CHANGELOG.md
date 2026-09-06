@@ -15,6 +15,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- `MontgomeryFrontendIO::montgomery_output_inner`, emitting a field element in the representation it is stored in, for a cleartext pass whose output is read back as advice.
+  Its sibling `montgomery_output` emits the canonical residue, and the two look equally reasonable at the point where one has to be chosen.
 - `Montgomery`, a wrapper for a field element's value in the representation its modulus stores it in.
   `MontgomeryWord::inner`, `into_inner` and `from_inner` carry it, so a stored value and a canonical residue can no longer be passed for one another: both are a `CompositeWord`, both lie in `[0, p)`, and under a pseudo-Mersenne modulus they are the same word, so nothing but a type can tell them apart.
 - `Zeroize` for `MontgomeryWord`, which erases the value and leaves the modulus alone.
