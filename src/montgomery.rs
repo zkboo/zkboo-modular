@@ -930,8 +930,12 @@ pub trait MontgomeryFrontendIO<B: Backend, W: Word, const N: usize, M: FieldRep<
     /// Variant of [Frontend::alloc] for Montgomery words.
     fn montgomery_alloc(&self, in_: MontgomeryWord<W, N, M>) -> MontgomeryWordRef<B, W, N, M>;
 
-    /// Variant of [Frontend::output] for Montgomery words.
+    /// Variant of [Frontend::output] for Montgomery words, emitting the canonical residue.
     fn montgomery_output(&self, out: MontgomeryWordRef<B, W, N, M>);
+
+    /// Variant of [Frontend::output] emitting the stored representation, for a cleartext pass whose
+    /// output is read back as advice with [Montgomery::from_raw].
+    fn montgomery_output_inner(&self, out: MontgomeryWordRef<B, W, N, M>);
 }
 
 impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> MontgomeryFrontendIO<B, W, N, M>
@@ -951,5 +955,9 @@ impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> MontgomeryFrontendI
 
     fn montgomery_output(&self, out: MontgomeryWordRef<B, W, N, M>) {
         self.output(out.canonical());
+    }
+
+    fn montgomery_output_inner(&self, out: MontgomeryWordRef<B, W, N, M>) {
+        self.output(out.into_inner());
     }
 }
