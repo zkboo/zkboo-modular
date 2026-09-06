@@ -113,12 +113,12 @@ struct BothInverses {
 
 impl Circuit for BothInverses {
     fn exec<B: Backend>(&self, fe: &Frontend<B>) {
-        let mut asserts = Assertions::new();
-        let a = MontgomeryWordRef::new(fe.input(self.a), Secp256k1);
-        let advice = MontgomeryWordRef::from_inner(fe.input(self.advice), Secp256k1);
-        fe.montgomery_output(a.clone().inv_advised(advice, &mut asserts));
-        fe.montgomery_output(a.inv());
-        asserts.output(fe);
+        Assertions::scope(fe, |asserts| {
+            let a = MontgomeryWordRef::new(fe.input(self.a), Secp256k1);
+            let advice = MontgomeryWordRef::from_inner(fe.input(self.advice), Secp256k1);
+            fe.montgomery_output(a.clone().inv_advised(advice, asserts));
+            fe.montgomery_output(a.inv());
+        });
     }
 }
 
@@ -141,11 +141,11 @@ impl AdvisedInverse {
 
 impl Circuit for AdvisedInverse {
     fn exec<B: Backend>(&self, fe: &Frontend<B>) {
-        let mut asserts = Assertions::new();
-        let a = MontgomeryWordRef::new(fe.input(self.a), self.field);
-        let advice = MontgomeryWordRef::from_inner(fe.input(self.advice), self.field);
-        let _ = a.inv_advised(advice, &mut asserts);
-        asserts.output(fe);
+        Assertions::scope(fe, |asserts| {
+            let a = MontgomeryWordRef::new(fe.input(self.a), self.field);
+            let advice = MontgomeryWordRef::from_inner(fe.input(self.advice), self.field);
+            let _ = a.inv_advised(advice, asserts);
+        });
     }
 }
 
@@ -241,9 +241,10 @@ struct NoInverse {
 
 impl Circuit for NoInverse {
     fn exec<B: Backend>(&self, fe: &Frontend<B>) {
-        let a = MontgomeryWordRef::new(fe.input(self.a), Secp256k1);
-        fe.montgomery_output(a);
-        Assertions::new().output(fe);
+        Assertions::scope(fe, |_| {
+            let a = MontgomeryWordRef::new(fe.input(self.a), Secp256k1);
+            fe.montgomery_output(a);
+        });
     }
 }
 
@@ -255,11 +256,11 @@ struct AdvisedOnly {
 
 impl Circuit for AdvisedOnly {
     fn exec<B: Backend>(&self, fe: &Frontend<B>) {
-        let mut asserts = Assertions::new();
-        let a = MontgomeryWordRef::new(fe.input(self.a), Secp256k1);
-        let advice = MontgomeryWordRef::from_inner(fe.input(self.advice), Secp256k1);
-        fe.montgomery_output(a.inv_advised(advice, &mut asserts));
-        asserts.output(fe);
+        Assertions::scope(fe, |asserts| {
+            let a = MontgomeryWordRef::new(fe.input(self.a), Secp256k1);
+            let advice = MontgomeryWordRef::from_inner(fe.input(self.advice), Secp256k1);
+            fe.montgomery_output(a.inv_advised(advice, asserts));
+        });
     }
 }
 
@@ -270,9 +271,10 @@ struct InCircuitOnly {
 
 impl Circuit for InCircuitOnly {
     fn exec<B: Backend>(&self, fe: &Frontend<B>) {
-        let a = MontgomeryWordRef::new(fe.input(self.a), Secp256k1);
-        fe.montgomery_output(a.inv());
-        Assertions::new().output(fe);
+        Assertions::scope(fe, |_| {
+            let a = MontgomeryWordRef::new(fe.input(self.a), Secp256k1);
+            fe.montgomery_output(a.inv());
+        });
     }
 }
 
