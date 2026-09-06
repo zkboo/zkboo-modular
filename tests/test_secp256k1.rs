@@ -102,7 +102,7 @@ test_unop!(const_reduce, |in_, m| {
     let out = {
         let in_ = MontgomeryWord::new(in_, m);
         let out = in_;
-        out.value()
+        out.canonical()
     };
     let reference_out = {
         let in_ = to_ubig(in_);
@@ -117,7 +117,7 @@ test_unop!(const_neg, |in_, m| {
     let out = {
         let in_ = MontgomeryWord::new(in_, m);
         let out = -in_;
-        out.value()
+        out.canonical()
     };
     let reference_out = {
         let in_ = to_ubig(in_);
@@ -134,7 +134,7 @@ test_binop!(const_add, |inl, inr, m| {
         let inl = MontgomeryWord::new(inl, m);
         let inr = MontgomeryWord::new(inr, m);
         let out = inl + inr;
-        out.value()
+        out.canonical()
     };
     let reference_out = {
         let inl = to_ubig(inl);
@@ -151,7 +151,7 @@ test_binop!(const_sub, |inl, inr, m| {
         let inl = MontgomeryWord::new(inl, m);
         let inr = MontgomeryWord::new(inr, m);
         let out = inl - inr;
-        out.value()
+        out.canonical()
     };
     let reference_out = {
         let inl = to_ubig(inl);
@@ -170,7 +170,7 @@ test_binop!(const_mul, |inl, inr, m| {
         let inl = MontgomeryWord::new(inl, m);
         let inr = MontgomeryWord::new(inr, m);
         let out = inl * inr;
-        out.value()
+        out.canonical()
     };
     let reference_out = {
         let inl = to_ubig(inl);
@@ -189,7 +189,7 @@ test_unop!(const_inv, |in_, m| {
         } else {
             let in_ = MontgomeryWord::new(in_, m);
             let out = in_ * in_.inv();
-            out.value()
+            out.canonical()
         }
     };
     let reference_out = if in_.is_zero() {
@@ -205,14 +205,14 @@ test_unop!(reduce, |in_, m| {
         let executor = ExecutionBackend::<WP>::new().into_executor();
         let in_ = MontgomeryWordRef::new(executor.input(in_), m);
         let out = in_;
-        executor.output(out.value());
+        executor.output(out.canonical());
         let outputs = executor.finalize().u128;
         CompositeWord::from_le_words(array::from_fn(|i| outputs[i]))
     };
     let reference_out = {
         let in_ = MontgomeryWord::new(in_, m);
         let out = in_;
-        out.value().into()
+        out.canonical().into()
     };
     assert_eq!(exec_out, reference_out);
 });
@@ -222,14 +222,14 @@ test_unop!(neg, |in_, m| {
         let executor = ExecutionBackend::<WP>::new().into_executor();
         let in_ = MontgomeryWordRef::new(executor.input(in_), m);
         let out = -in_;
-        executor.output(out.value());
+        executor.output(out.canonical());
         let outputs = executor.finalize().u128;
         CompositeWord::from_le_words(array::from_fn(|i| outputs[i]))
     };
     let reference_out = {
         let in_ = MontgomeryWord::new(in_, m);
         let out = -in_;
-        out.value().into()
+        out.canonical().into()
     };
     assert_eq!(exec_out, reference_out);
 });
@@ -240,7 +240,7 @@ test_binop!(add, |inl, inr, m| {
         let inl = MontgomeryWordRef::new(executor.input(inl), m);
         let inr = MontgomeryWordRef::new(executor.input(inr), m);
         let out = inl + inr;
-        executor.output(out.value());
+        executor.output(out.canonical());
         let outputs = executor.finalize().u128;
         CompositeWord::from_le_words(array::from_fn(|i| outputs[i]))
     };
@@ -248,7 +248,7 @@ test_binop!(add, |inl, inr, m| {
         let inl = MontgomeryWord::new(inl, m);
         let inr = MontgomeryWord::new(inr, m);
         let out = inl + inr;
-        out.value().into()
+        out.canonical().into()
     };
     assert_eq!(exec_out, reference_out);
 });
@@ -259,7 +259,7 @@ test_binop!(sub, |inl, inr, m| {
         let inl = MontgomeryWordRef::new(executor.input(inl), m);
         let inr = MontgomeryWordRef::new(executor.input(inr), m);
         let out = inl - inr;
-        executor.output(out.value());
+        executor.output(out.canonical());
         let outputs = executor.finalize().u128;
         CompositeWord::from_le_words(array::from_fn(|i| outputs[i]))
     };
@@ -267,7 +267,7 @@ test_binop!(sub, |inl, inr, m| {
         let inl = MontgomeryWord::new(inl, m);
         let inr = MontgomeryWord::new(inr, m);
         let out = inl - inr;
-        out.value().into()
+        out.canonical().into()
     };
     assert_eq!(exec_out, reference_out);
 });
@@ -278,7 +278,7 @@ test_binop!(mul, |inl, inr, m| {
         let inl = MontgomeryWordRef::new(executor.input(inl), m);
         let inr = MontgomeryWordRef::new(executor.input(inr), m);
         let out = inl * inr;
-        executor.output(out.value());
+        executor.output(out.canonical());
         let outputs = executor.finalize().u128;
         CompositeWord::from_le_words(array::from_fn(|i| outputs[i]))
     };
@@ -286,7 +286,7 @@ test_binop!(mul, |inl, inr, m| {
         let inl = MontgomeryWord::new(inl, m);
         let inr = MontgomeryWord::new(inr, m);
         let out = inl * inr;
-        out.value().into()
+        out.canonical().into()
     };
     assert_eq!(exec_out, reference_out);
 });
@@ -296,14 +296,14 @@ test_unop!(inv, |in_, m| {
         let executor = ExecutionBackend::<WP>::new().into_executor();
         let in_ = MontgomeryWordRef::new(executor.input(in_), m);
         let out = in_.inv();
-        executor.output(out.value());
+        executor.output(out.canonical());
         let outputs = executor.finalize().u128;
         CompositeWord::from_le_words(array::from_fn(|i| outputs[i]))
     };
     let reference_out = {
         let in_ = MontgomeryWord::new(in_, m);
         let out = in_.inv();
-        out.value().into()
+        out.canonical().into()
     };
     assert_eq!(exec_out, reference_out);
 });

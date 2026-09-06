@@ -71,7 +71,7 @@ impl Circuit for MontMulWithConv {
     fn exec<B: Backend>(&self, fe: &Frontend<B>) {
         let a = MontgomeryWordRef::new(w(fe), SecpMont);
         let b = MontgomeryWordRef::new(w(fe), SecpMont);
-        fe.output((a * b).value());
+        fe.output((a * b).canonical());
     }
 }
 struct PmMul;

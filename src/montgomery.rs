@@ -237,6 +237,37 @@ impl<W: Word, const N: usize, M: FieldRep<W, N>> Zeroize for MontgomeryWord<W, N
     }
 }
 
+/// A field element's value as it is stored, in the representation its modulus uses internally.
+///
+/// The wrapper exists so that a stored value and a canonical residue cannot be mistaken for one
+/// another: both are a [CompositeWord], both are in `[0, p)`, and for a pseudo-Mersenne modulus
+/// they are even equal, so nothing but the type distinguishes them.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Zeroize)]
+pub struct Montgomery<W: Word, const N: usize> {
+    word: CompositeWord<W, N>,
+}
+
+impl<W: Word, const N: usize> Montgomery<W, N> {
+    /// Wraps a word already in the stored representation.
+    ///
+    /// ⚠️ The caller is asserting that the word is in that representation and not a canonical
+    /// residue. Reach for this only where the word came from [MontgomeryWord::into_inner],
+    /// [MontgomeryWordRef::into_inner], or an output produced from one.
+    pub fn from_raw(word: CompositeWord<W, N>) -> Self {
+        return Self { word };
+    }
+
+    /// The wrapped word.
+    pub fn into_raw(self) -> CompositeWord<W, N> {
+        return self.word;
+    }
+
+    /// The zero of the field, which is zero in either representation.
+    pub const ZERO: Self = Self {
+        word: CompositeWord::<W, N>::ZERO,
+    };
+}
+
 impl<W: Word, const N: usize, M: FieldRep<W, N>> MontgomeryWord<W, N, M> {
     /// Converts the given value to Montgomery form.
     #[inline]
@@ -251,9 +282,9 @@ impl<W: Word, const N: usize, M: FieldRep<W, N>> MontgomeryWord<W, N, M> {
     ///
     /// ⚠️ Safety: The caller must ensure that the value is in Montgomery form.
     /// Failure to do so may result in incorrect behaviour.
-    pub fn from_inner(montgomery_val: CompositeWord<W, N>, modulus: M) -> Self {
+    pub fn from_inner(montgomery_val: Montgomery<W, N>, modulus: M) -> Self {
         return Self {
-            montgomery_val,
+            montgomery_val: montgomery_val.into_raw(),
             modulus,
         };
     }
@@ -268,19 +299,19 @@ impl<W: Word, const N: usize, M: FieldRep<W, N>> MontgomeryWord<W, N, M> {
         return self.modulus;
     }
 
-    /// Converts this value out of Montgomery form.
-    pub fn value(self) -> CompositeWord<W, N> {
+    /// The canonical residue of this value, converted out of Montgomery form.
+    pub fn canonical(self) -> CompositeWord<W, N> {
         return self.modulus.decode_const(self.montgomery_val);
     }
 
     /// Returns the inner Montgomery value.
-    pub fn inner(&self) -> &CompositeWord<W, N> {
-        return &self.montgomery_val;
+    pub fn inner(&self) -> Montgomery<W, N> {
+        return Montgomery::from_raw(self.montgomery_val);
     }
 
     /// Consumes this Montgomery word and returns the inner Montgomery value.
-    pub fn into_inner(self) -> CompositeWord<W, N> {
-        return self.montgomery_val;
+    pub fn into_inner(self) -> Montgomery<W, N> {
+        return Montgomery::from_raw(self.montgomery_val);
     }
 
     /// Consumes this Montgomery word and returns its inner Montgomery value and modulus.
@@ -469,7 +500,7 @@ impl<B: Backend, M: FieldRep<W, N>, W: Word, const N: usize> MontgomeryWordRef<B
     }
 
     /// Converts this value out of Montgomery form.
-    pub fn value(self) -> WordRef<B, W, N> {
+    pub fn canonical(self) -> WordRef<B, W, N> {
         return self.modulus.decode(self.montgomery_val);
     }
 
@@ -516,12 +547,12 @@ impl<B: Backend, M: FieldRep<W, N>, W: Word, const N: usize> MontgomeryWordRef<B
 
     /// Compares this Montgomery word with a constant for equality, returning a boolean reference.
     pub fn eq_const(self, other: MontgomeryWord<W, N, M>) -> BooleanWordRef<B> {
-        return self.montgomery_val.eq_const(other.into_inner());
+        return self.montgomery_val.eq_const(other.into_inner().into_raw());
     }
 
     /// Compares this Montgomery word with a constant for inequality, returning a boolean reference.
     pub fn ne_const(self, other: MontgomeryWord<W, N, M>) -> BooleanWordRef<B> {
-        return self.montgomery_val.ne_const(other.into_inner());
+        return self.montgomery_val.ne_const(other.into_inner().into_raw());
     }
 
     /// Modular addition with a constant.
@@ -579,7 +610,7 @@ impl<B: Backend, M: FieldRep<W, N>, W: Word, const N: usize> MontgomeryWordRef<B
         let modulus = self.modulus;
         let montgomery_val = self.montgomery_val;
         return Self {
-            montgomery_val: montgomery_val.into_const_same_width(word.into_inner()),
+            montgomery_val: montgomery_val.into_const_same_width(word.into_inner().into_raw()),
             modulus,
         };
     }
@@ -812,7 +843,7 @@ impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>>
             panic!("Cannot select between words with different moduli");
         }
         let (then, modulus) = then.destructure();
-        let else_ = else_.into_inner();
+        let else_ = else_.into_inner().into_raw();
         return MontgomeryWordRef {
             montgomery_val: self.select_const_const(then, else_),
             modulus,
@@ -844,7 +875,7 @@ impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>>
             panic!("Cannot select between words with different moduli");
         }
         let (then, modulus) = then.destructure();
-        let else_ = else_.into_inner();
+        let else_ = else_.into_inner().into_raw();
         return MontgomeryWordRef {
             montgomery_val: self.select_var_const(then, else_),
             modulus,
@@ -887,7 +918,7 @@ impl<_B: Backend, W: Word, const N: usize, M: FieldRep<W, N>, _W: Word, const _N
         if word.is_zero() {
             return MontgomeryWordRef::new(self.alloc_new_zero(), word.modulus());
         }
-        return MontgomeryWordRef::new(self.alloc_new_word(word.value()), word.modulus());
+        return MontgomeryWordRef::new(self.alloc_new_word(word.canonical()), word.modulus());
     }
 }
 
@@ -919,6 +950,6 @@ impl<B: Backend, W: Word, const N: usize, M: FieldRep<W, N>> MontgomeryFrontendI
     }
 
     fn montgomery_output(&self, out: MontgomeryWordRef<B, W, N, M>) {
-        self.output(out.value());
+        self.output(out.canonical());
     }
 }

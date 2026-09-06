@@ -133,14 +133,14 @@ macro_rules! test_binop {
 }
 
 test_unop!(const_reduce, W, |in_, m| {
-    assert_eq!(MontgomeryWord::new(in_, m).value().into(), {
+    assert_eq!(MontgomeryWord::new(in_, m).canonical().into(), {
         let n = m.n().into();
         in_ % n
     });
 });
 
 test_unop!(const_neg, W, |in_, m| {
-    assert_eq!((-MontgomeryWord::new(in_, m)).value().into(), {
+    assert_eq!((-MontgomeryWord::new(in_, m)).canonical().into(), {
         let n = m.n().into();
         let in_ = in_ % n;
         if in_ == 0 { in_ } else { n - in_ }
@@ -152,7 +152,7 @@ test_binop!(const_add, W, |inl, inr, m| {
         {
             let inl = MontgomeryWord::new(inl, m);
             let inr = MontgomeryWord::new(inr, m);
-            (inl + inr).value().into()
+            (inl + inr).canonical().into()
         },
         {
             let n = m.n().into();
@@ -166,7 +166,7 @@ test_binop!(const_sub, W, |inl, inr, m| {
         {
             let inl = MontgomeryWord::new(inl, m);
             let inr = MontgomeryWord::new(inr, m);
-            (inl - inr).value().into()
+            (inl - inr).canonical().into()
         },
         {
             let n = m.n().into();
@@ -182,7 +182,7 @@ test_binop!(const_mul, W, |inl, inr, m| {
         {
             let inl = MontgomeryWord::new(inl, m);
             let inr = MontgomeryWord::new(inr, m);
-            (inl * inr).value().into()
+            (inl * inr).canonical().into()
         },
         {
             let n = m.n().into();
@@ -198,13 +198,13 @@ test_unop!(reduce, W, |in_, m| {
         let executor = ExecutionBackend::<WP>::new().into_executor();
         let in_ = MontgomeryWordRef::new(executor.input(in_), m);
         let out = in_;
-        executor.output(out.value());
+        executor.output(out.canonical());
         executor.finalize().as_vec()[0]
     };
     let reference_out = {
         let in_ = MontgomeryWord::new(in_, m);
         let out = in_;
-        out.value().into()
+        out.canonical().into()
     };
     assert_eq!(exec_out, reference_out);
 });
@@ -214,13 +214,13 @@ test_unop!(neg, W, |in_, m| {
         let executor = ExecutionBackend::<WP>::new().into_executor();
         let in_ = MontgomeryWordRef::new(executor.input(in_), m);
         let out = -in_;
-        executor.output(out.value());
+        executor.output(out.canonical());
         executor.finalize().as_vec()[0]
     };
     let reference_out = {
         let in_ = MontgomeryWord::new(in_, m);
         let out = -in_;
-        out.value().into()
+        out.canonical().into()
     };
     assert_eq!(exec_out, reference_out);
 });
@@ -231,14 +231,14 @@ test_binop!(add, W, |inl, inr, m| {
         let inl = MontgomeryWordRef::new(executor.input(inl), m);
         let inr = MontgomeryWordRef::new(executor.input(inr), m);
         let out = inl + inr;
-        executor.output(out.value());
+        executor.output(out.canonical());
         executor.finalize().as_vec()[0]
     };
     let reference_out = {
         let inl = MontgomeryWord::new(inl, m);
         let inr = MontgomeryWord::new(inr, m);
         let out = inl + inr;
-        out.value().into()
+        out.canonical().into()
     };
     assert_eq!(exec_out, reference_out);
 });
@@ -249,14 +249,14 @@ test_binop!(sub, W, |inl, inr, m| {
         let inl = MontgomeryWordRef::new(executor.input(inl), m);
         let inr = MontgomeryWordRef::new(executor.input(inr), m);
         let out = inl - inr;
-        executor.output(out.value());
+        executor.output(out.canonical());
         executor.finalize().as_vec()[0]
     };
     let reference_out = {
         let inl = MontgomeryWord::new(inl, m);
         let inr = MontgomeryWord::new(inr, m);
         let out = inl - inr;
-        out.value().into()
+        out.canonical().into()
     };
     assert_eq!(exec_out, reference_out);
 });
@@ -267,14 +267,14 @@ test_binop!(mul, W, |inl, inr, m| {
         let inl = MontgomeryWordRef::new(executor.input(inl), m);
         let inr = MontgomeryWordRef::new(executor.input(inr), m);
         let out = inl * inr;
-        executor.output(out.value());
+        executor.output(out.canonical());
         executor.finalize().as_vec()[0]
     };
     let reference_out = {
         let inl = MontgomeryWord::new(inl, m);
         let inr = MontgomeryWord::new(inr, m);
         let out = inl * inr;
-        out.value().into()
+        out.canonical().into()
     };
     assert_eq!(exec_out, reference_out);
 });
