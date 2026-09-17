@@ -4,6 +4,13 @@ All notable changes to this crate are documented in this file, starting at 1.2.0
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this crate adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- The `zkboo` requirement is `1.2.1`, the version this crate is built against; it had been left at `1.0.0`, which admits versions without the entry points the crate uses.
+  The `zkboo-profiling` test requirement is corrected likewise, to `1.2.0`.
+
 ## [1.2.1] — 2026-09-09
 
 ### Changed
