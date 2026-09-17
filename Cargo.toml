@@ -10,7 +10,7 @@ keywords = ["zk", "zero-knowledge", "zkboo"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-zkboo = "1.0.0"
+zkboo = "1.2.1"
 zeroize = { version = "1.8.2", default-features = false }
 
 [dev-dependencies]
@@ -31,4 +31,4 @@ zeroize = { version = "1.8.2", default-features = false, features = [
     "alloc",
 ] }
 dashu-int = "0.4.1"
-zkboo-profiling = "1.0.0"
+zkboo-profiling = "1.2.0"
