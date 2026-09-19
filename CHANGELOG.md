@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- The shared proving helper names the number of repetitions it verifies, as `zkboo` now requires.
+
 ### Fixed
 
 - The `zkboo` requirement is `1.2.1`, the version this crate is built against; it had been left at `1.0.0`, which admits versions without the entry points the crate uses.
