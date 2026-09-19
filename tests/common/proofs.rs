@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 use zeroize::Zeroize;
+use zkboo::Repetitions;
+use zkboo::executor::ExecOptions;
+use zkboo::prover::proof::ProofOptions;
+use zkboo::verifier::VerifyOptions;
 use zkboo::{
     circuit::Circuit,
     crypto::{HashPRG, Hasher},
@@ -8,9 +12,6 @@ use zkboo::{
     prover::{par_prove, prove, views::OwnedFlexibleWordTriplePool},
     verifier::{par_verify, replay::OwnedFlexibleWordPairPool, verify},
 };
-use zkboo::executor::ExecOptions;
-use zkboo::prover::proof::ProofOptions;
-use zkboo::verifier::VerifyOptions;
 
 type WP = OwnedFlexibleWordPool<usize>;
 type WTP = OwnedFlexibleWordTriplePool<usize>;
@@ -61,24 +62,62 @@ pub fn test_proof<C: Circuit + Sync>(circuit: &C) {
         let mut proof;
         let mut is_valid;
         // [seq prove, seq verify]
-        proof = prove::<C, H, PS, PV, S, _, WTP, _>(circuit, NUM_PROOF_ITERS, SEED_ENTROPY, &[], ProofOptions::new());
-        is_valid = verify::<C, H, PV, S, WPP, _>(circuit, &expected_output, &proof, &[], VerifyOptions::new())
-            .expect("Error verifying proof [seq prove, seq verify]");
+        proof = prove::<C, H, PS, PV, S, _, WTP, _>(
+            circuit,
+            NUM_PROOF_ITERS,
+            SEED_ENTROPY,
+            &[],
+            ProofOptions::new(),
+        );
+        is_valid = verify::<C, H, PV, S, WPP, _>(
+            circuit,
+            &expected_output,
+            &proof,
+            &[],
+            Repetitions::exactly(NUM_PROOF_ITERS),
+            VerifyOptions::new(),
+        )
+        .expect("Error verifying proof [seq prove, seq verify]");
         assert!(is_valid, "Proof is invalid [seq prove, seq verify].");
         // [seq prove, par verify]
-        proof = prove::<C, H, PS, PV, S, _, WTP, _>(circuit, NUM_PROOF_ITERS, SEED_ENTROPY, &[], ProofOptions::new());
-        is_valid = par_verify::<C, H, PV, S, WPP>(circuit, &expected_output, &proof, &[])
-            .expect("Error verifying proof [seq prove, seq verify]");
+        proof = prove::<C, H, PS, PV, S, _, WTP, _>(
+            circuit,
+            NUM_PROOF_ITERS,
+            SEED_ENTROPY,
+            &[],
+            ProofOptions::new(),
+        );
+        is_valid = par_verify::<C, H, PV, S, WPP>(
+            circuit,
+            &expected_output,
+            &proof,
+            &[],
+            Repetitions::exactly(NUM_PROOF_ITERS),
+        )
+        .expect("Error verifying proof [seq prove, seq verify]");
         assert!(is_valid, "Proof is invalid [seq prove, seq verify].");
         // [par prove, seq verify]
         proof = par_prove::<C, H, PS, PV, S, WTP>(circuit, NUM_PROOF_ITERS, SEED_ENTROPY, &[]);
-        is_valid = verify::<C, H, PV, S, WPP, _>(circuit, &expected_output, &proof, &[], VerifyOptions::new())
-            .expect("Error verifying proof [seq prove, seq verify]");
+        is_valid = verify::<C, H, PV, S, WPP, _>(
+            circuit,
+            &expected_output,
+            &proof,
+            &[],
+            Repetitions::exactly(NUM_PROOF_ITERS),
+            VerifyOptions::new(),
+        )
+        .expect("Error verifying proof [seq prove, seq verify]");
         assert!(is_valid, "Proof is invalid [seq prove, seq verify].");
         // [par prove, par verify]
         proof = par_prove::<C, H, PS, PV, S, WTP>(circuit, NUM_PROOF_ITERS, SEED_ENTROPY, &[]);
-        is_valid = par_verify::<C, H, PV, S, WPP>(circuit, &expected_output, &proof, &[])
-            .expect("Error verifying proof [seq prove, seq verify]");
+        is_valid = par_verify::<C, H, PV, S, WPP>(
+            circuit,
+            &expected_output,
+            &proof,
+            &[],
+            Repetitions::exactly(NUM_PROOF_ITERS),
+        )
+        .expect("Error verifying proof [seq prove, seq verify]");
         assert!(is_valid, "Proof is invalid [seq prove, seq verify].");
     }
 }
